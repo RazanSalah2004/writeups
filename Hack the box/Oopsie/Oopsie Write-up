@@ -1,24 +1,26 @@
 # HTB Oopsie Writeup
 
-**Difficulty:** Easy  
 **Focus Areas:** Web Enumeration, Access Control, Privilege Escalation, RCE  
 **Category:** Web / Linux – Starting Point  
+**Difficulty:** Easy
 **Done by:** Razan Salah  
 
 ---
 
 ## Overview
 
-Oopsie is a web-focused Hack The Box machine that demonstrates how low-severity vulnerabilities such as information disclosure and broken access control can be chained into full system compromise. The attack path begins with reconnaissance and web enumeration using Nmap, Gobuster, and Burp Suite to identify hidden functionality and weak access controls. By abusing insecure session handling and client-side trust, administrative functionality is exposed, allowing file upload abuse to achieve remote code execution through a PHP reverse shell. Post-exploitation enumeration reveals credential disclosure for lateral movement, followed by privilege escalation through a misconfigured SUID binary, ultimately resulting in root access.
+Oopsie is a web-focused Hack The Box machine that demonstrates how low-severity vulnerabilities such as information disclosure and broken access
+control can be chained into full system compromise. The attack path begins with reconnaissance and web enumeration using Nmap, Gobuster, and Burp Suite 
+to identify hidden functionality and weak access controls. By abusing insecure session handling and client-side trust, administrative functionality 
+is exposed, allowing file upload abuse to achieve remote code execution through a PHP reverse shell. Post-exploitation enumeration reveals credential d
+isclosure for lateral movement, followed by privilege escalation through a misconfigured SUID binary, ultimately resulting in root access.
 
 ---
 
 ## 1. Reconnaissance
-
 This phase focused on identifying exposed services and selecting the most viable initial attack surface.
 
 ### A) Port Discovery
-
 An Nmap scan was performed to identify open ports and running services on the target.
 
 **Command:**
@@ -26,7 +28,6 @@ An Nmap scan was performed to identify open ports and running services on the ta
 nmap -sC -sV 10.129.142.60
 
 The scan revealed two exposed services:
-
 22/tcp (SSH)
 80/tcp (HTTP)
 
