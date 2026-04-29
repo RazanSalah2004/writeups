@@ -6,7 +6,7 @@ Privilege Escalation via Misconfiguration and PATH Hijacking
 
 ---
 
-## Overview
+## Overview: Full Web Exploitation Chain
 
 Oopsie is a web-focused Hack The Box machine that demonstrates how low-severity vulnerabilities such as information disclosure and broken access
 control can be chained into full system compromise. The attack path begins with reconnaissance and web enumeration using Nmap, Gobuster, and Burp Suite 
