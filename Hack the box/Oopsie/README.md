@@ -24,7 +24,7 @@ This phase focused on identifying exposed services and selecting the most viable
 An Nmap scan was performed to identify open ports and running services on the target.
 
 **Command:**
-```bash
+
 nmap -sC -sV 10.129.142.60
 ![Nmap Scan](images/nmap-scan.png) 
 The scan revealed two exposed services:
